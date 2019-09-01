@@ -1,0 +1,23 @@
+{
+  "name": "ase-bot",
+  "version": "1.0.0",
+  "description": "Discord bot to process Aseprite files and handle some image manipulation",
+  "main": "start.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheCyberRonin/ase-bot.git"
+  },
+  "author": "cyberronin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TheCyberRonin/ase-bot/issues"
+  },
+  "homepage": "https://github.com/TheCyberRonin/ase-bot#readme",
+  "dependencies": {
+    "eris": "^0.10.1",
+    "nedb": "^1.8.0"
+  }
+}
