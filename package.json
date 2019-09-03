@@ -18,6 +18,9 @@
   "homepage": "https://github.com/TheCyberRonin/ase-bot#readme",
   "dependencies": {
     "eris": "^0.10.1",
-    "nedb": "^1.8.0"
+    "fast-png": "^4.0.1",
+    "nedb": "^1.8.0",
+    "node-fetch": "^2.6.0",
+    "sharp": "^0.23.0"
   }
 }

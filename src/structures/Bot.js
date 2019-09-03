@@ -161,7 +161,8 @@ class Bot extends EventEmitter {
       message: message.content,
       isDirectMessage: bot.privateChannels.get(message.channel.id) !== undefined ? true : false,
       isCommandForm: utility.isCommandForm(message.content),
-      isAdministrator: utility.isAdministrator(message.author.id)
+      isAdministrator: utility.isAdministrator(message.author.id),
+      attachments: message.attachments
     };
     
     // No need to continue if this isn't a command.

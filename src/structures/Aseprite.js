@@ -1,10 +1,9 @@
-import pako from "pako";
-import PNG from './PNG';
-import {encode} from 'fast-png';
-class AseReader {
-  constructor(buffer) {
+const zlib = require('zlib');
+const {formatBytes} = require('../lib/utility');
+class Aseprite {
+  constructor(buffer, name) {
     this._offset = 0;
-    this._buffer
+    this._buffer = buffer;
     this.frames = [];
     this.layers = [];
     this.fileSize;
@@ -14,6 +13,7 @@ class AseReader {
     this.colorDepth;
     this.numColors;
     this.pixelRatio;
+    this.name = name;
   }
   readNextByte() {
     const nextByte = this._buffer.readUInt8(this._offset);
@@ -64,28 +64,26 @@ class AseReader {
     return this._buffer.readFloatLE(offset);
   }
   readNextBytes(numBytes) {
-    let strBuff = new ArrayBuffer(numBytes);
-    const strdv = new DataView(strBuff);
+    let strBuff = Buffer.alloc(numBytes);
     for (let i = 0; i < numBytes; i++) {
-      strdv.setUint8(i, this.readNextByte());
+      strBuff.writeUInt8(this.readNextByte(), i);
     }
-    return this.Utf8ArrayToStr(new Uint8Array(strBuff));
+    return strBuff.toString();
   }
   readNextRawBytes(numBytes) {
-    let buff = new ArrayBuffer(numBytes);
-    const strdv = new DataView(buff);
+    let buff = Buffer.alloc(numBytes);
     for (let i = 0; i < numBytes; i++) {
-      strdv.setUint8(i, this.readNextByte());
+      buff.writeUInt8(this.readNextByte(), i);
     }
-    return new Uint8Array(buff);
+    return buff;
   }
-  readRawBytes(numBytes, dv, offset) {
-    let buff = new ArrayBuffer(numBytes - offset);
-    const buffdv = new DataView(buff);
+  //reads numBytes bytes of buffer b offset by offset bytes
+  readRawBytes(numBytes, b, offset) {
+    let buff = Buffer.alloc(numBytes - offset);
     for (let i = 0; i < numBytes - offset; i++) {
-      buffdv.setUint8(i, dv.readUInt8(offset + i, true));
+      buff.writeUInt8(b.readUInt8(offset + i), i);
     }
-    return new Uint8Array(buff);
+    return buff;
   }
   readNextString() {
     const numBytes = this.readNextWord();
@@ -299,7 +297,7 @@ class AseReader {
       w,
       h
     });
-    const rawCel = pako.inflate(buff);
+    const rawCel = zlib.inflateSync(buff);
     return { layerIndex,
       xpos: x,
       ypos: y,
@@ -325,6 +323,31 @@ class AseReader {
     //}
    
   }
+  formatBytes(bytes,decimals) {
+    if (bytes === 0) {
+      return '0 Byte';
+    }
+    const k = 1024;
+    const dm = decimals + 1 || 3;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+  toEmbed() {
+    const fileName = this.name.replace('.aseprite', '.png');
+    const emb = { title: fileName};
+    emb.image = {url: `attachment://${fileName}`}
+    emb.fields = [];
+    //size
+    emb.fields.push({name: 'Size', value: this.formatBytes(this.fileSize, 2)});
+    //framecount
+    emb.fields.push({name: 'Frames', value: this.numFrames});
+    //width and height
+    emb.fields.push({name: 'Dimensions', value: `${this.width}X${this.height}`});
+    //pixel ratio
+    emb.fields.push({name: 'Pixel Ratio' ,value: this.pixelRatio});
+    return emb;
+  }
   toJSON() {
     return {
       fileSize: this.fileSize,
@@ -339,4 +362,4 @@ class AseReader {
   }
 }
 
-export default AseReader;
+module.exports = Aseprite;
