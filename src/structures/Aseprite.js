@@ -1,5 +1,5 @@
 const zlib = require('zlib');
-const {formatBytes} = require('../lib/utility');
+
 class Aseprite {
   constructor(buffer, name) {
     this._offset = 0;
@@ -14,6 +14,7 @@ class Aseprite {
     this.numColors;
     this.pixelRatio;
     this.name = name;
+    this.tags = {};
   }
   readNextByte() {
     const nextByte = this._buffer.readUInt8(this._offset);
@@ -92,56 +93,6 @@ class Aseprite {
   skipBytes(numBytes) {
     this._offset += numBytes;
   }
-  // adopted from:
-  //   http://www.onicos.com/staff/iz/amuse/javascript/expert/utf.txt
-
-  /* utf.js - UTF-8 <=> UTF-16 convertion
-   *
-   * Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
-   * Version: 1.0
-   * LastModified: Dec 25 1999
-   * This library is free.  You can redistribute it and/or modify it.
-   */
-
-  Utf8ArrayToStr(array) {
-    var out, i, len, c;
-    var char2, char3;
-
-    out = "";
-    len = array.length;
-    i = 0;
-    while (i < len) {
-      c = array[i++];
-      switch (c >> 4) {
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-          // 0xxxxxxx
-          out += String.fromCharCode(c);
-          break;
-        case 12:
-        case 13:
-          // 110x xxxx   10xx xxxx
-          char2 = array[i++];
-          out += String.fromCharCode(((c & 0x1f) << 6) | (char2 & 0x3f));
-          break;
-        case 14:
-          // 1110 xxxx  10xx xxxx  10xx xxxx
-          char2 = array[i++];
-          char3 = array[i++];
-          out += String.fromCharCode(
-            ((c & 0x0f) << 12) | ((char2 & 0x3f) << 6) | ((char3 & 0x3f) << 0)
-          );
-          break;
-      }
-    }
-    return out;
-  }
   readHeader() {
     this.fileSize = this.readNextDWord();
     this.readNextWord();
@@ -164,18 +115,23 @@ class Aseprite {
     const frameDuration = this.readNextWord();
     this.skipBytes(2);
     const newChunk = this.readNextDWord();
+    /*
     console.log({
       bytesInFrame,
       oldChunk,
       frameDuration,
       newChunk
-    });
+    }); */
     let cels = [];
-    //return newChunk;
     for(let i = 0; i < newChunk; i ++) {
       let chunkData = this.readChunk();
       switch(chunkData.type) {
         case 0x0004:
+        case 0x0011:
+        case 0x2016:
+        case 0x2017:
+        case 0x2020:
+        case 0x2022:
           this.skipBytes(chunkData.chunkSize - 6);
           break;
         case 0x2004:
@@ -189,6 +145,10 @@ class Aseprite {
           break;
         case 0x2007:
           this.readColorProfileChunk();
+          break;
+        case 0x2018:
+          console.log('Frame Tags');
+          this.readFrameTagsChunk();
           break;
         case 0x2019:
           console.log('Palette');
@@ -206,14 +166,31 @@ class Aseprite {
     const flag = this.readNextWord();
     const fGamma = this.readNextFixed();
     this.skipBytes(8);
+    /*
     console.log({
       type,
       flag,
       fGamma
-    });
+    });*/
     this.colorProfile = {type,
       flag,
       fGamma};
+  }
+  readFrameTagsChunk() {
+    const numTags = this.readNextWord();
+    this.skipBytes(8);
+    for(let i = 0; i < numTags; i ++) {
+      let tag = {};
+      tag.from = this.readNextWord();
+      tag.to = this.readNextWord();
+      tag.animDirection = this.readNextByte();
+      this.skipBytes(8);
+      tag.color = this.readNextRawBytes(3).readUIntLE(0,3);
+      this.skipBytes(1);
+      const name = this.readNextString();
+      this.tags[name] = tag;
+      console.log(tag);
+    }
   }
   readPaletteChunk() {
     const paletteSize = this.readNextDWord();
@@ -240,12 +217,13 @@ class Aseprite {
         name: name !== undefined ? name : "none"
       });
     }
+    /*
     console.log({
       paletteSize,
       firstColor,
       secondColor,
       colors
-    });
+    });*/
     return { paletteSize,
       firstColor,
       lastColor: secondColor,
@@ -266,6 +244,7 @@ class Aseprite {
       blendMode,
       opacity,
       name});
+      /*
     console.log({
       flags,
       type,
@@ -273,7 +252,7 @@ class Aseprite {
       blendMode,
       opacity,
       name
-    });
+    });*/
   }
   //size of chunk in bytes for the WHOLE thing
   readCelChunk(chunkSize) {
@@ -283,11 +262,10 @@ class Aseprite {
     const opacity = this.readNextByte();
     const celType = this.readNextWord();
     this.skipBytes(7);
-    console.log(this._offset);
     const w = this.readNextWord();
     const h = this.readNextWord();
     const buff = this.readNextRawBytes(chunkSize - 26); //take the first 20 bytes off for the data above and chunk info
-
+    /*
     console.log({
       layerIndex,
       x,
@@ -296,7 +274,7 @@ class Aseprite {
       celType,
       w,
       h
-    });
+    });*/
     const rawCel = zlib.inflateSync(buff);
     return { layerIndex,
       xpos: x,
@@ -309,18 +287,19 @@ class Aseprite {
   }
   readChunk() {
     const cSize = this.readNextDWord();
-    const type = this.readNextWord();;
+    const type = this.readNextWord();
+    /*
     console.log({
       cSize,
       type
-    });
+    });*/
     return {chunkSize: cSize, type: type};
   }
   parse() {
     const numFrames = this.readHeader();
-    //for(let i = 0; i < numFrames; i ++) {
+    for(let i = 0; i < numFrames; i ++) {
       this.readFrame();
-    //}
+    }
    
   }
   formatBytes(bytes,decimals) {
@@ -345,7 +324,7 @@ class Aseprite {
     //width and height
     emb.fields.push({name: 'Dimensions', value: `${this.width}X${this.height}`});
     //pixel ratio
-    emb.fields.push({name: 'Pixel Ratio' ,value: this.pixelRatio});
+    emb.fields.push({name: 'Tags' ,value: Object.keys(this.tags).length});
     return emb;
   }
   toJSON() {

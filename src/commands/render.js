@@ -2,7 +2,7 @@
 const fetch = require('node-fetch');
 const Command = require('../structures/Command');
 const sharp = require('sharp');
-//Kills the bot, just in case it's acting up ;)
+//renders an aseprite file and gives information about it
 module.exports = (requires) => {
   return new Command({
     name: 'Render',
@@ -17,7 +17,6 @@ module.exports = (requires) => {
       const info = requires.info;
       const Aseprite = require('../structures/Aseprite');
 
-      console.log(details);
       if (details.attachments) {
         console.log(details.attachments[0]);
         fetch(details.attachments[0].url).then(res => {
@@ -27,6 +26,7 @@ module.exports = (requires) => {
         }).then(buffer => {
             const ase = new Aseprite(buffer, details.attachments[0].filename);
             ase.parse();
+            console.log(ase);
             const bgPromise = sharp({create: {
               width: ase.width,
               height: ase.height,
