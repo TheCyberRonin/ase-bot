@@ -1,5 +1,6 @@
 'use strict';
 const fetch = require('node-fetch');
+const Aseprite = require('ase-parser');
 const Command = require('../structures/Command');
 const sharp = require('sharp');
 //renders an aseprite file and gives information about it
@@ -15,8 +16,22 @@ module.exports = (requires) => {
     action: (details) => {
       const bot = requires.bot;
       const info = requires.info;
-      const Aseprite = require('../structures/Aseprite');
 
+      function toEmbed(aseFile) {
+        const fileName = aseFile.name.replace('.aseprite', '.png');
+        const emb = { title: fileName};
+        emb.image = {url: `attachment://${fileName}`}
+        emb.fields = [];
+        //size
+        emb.fields.push({name: 'Size', value: aseFile.formatBytes(aseFile.fileSize, 2)});
+        //framecount
+        emb.fields.push({name: 'Frames', value: aseFile.numFrames});
+        //width and height
+        emb.fields.push({name: 'Dimensions', value: `${aseFile.width}X${aseFile.height}`});
+        //pixel ratio
+        emb.fields.push({name: 'Tags' ,value: aseFile.tags.length});
+        return emb;
+      }
       if (details.attachments) {
         console.log(details.attachments[0]);
         fetch(details.attachments[0].url).then(res => {
@@ -26,7 +41,6 @@ module.exports = (requires) => {
         }).then(buffer => {
             const ase = new Aseprite(buffer, details.attachments[0].filename);
             ase.parse();
-            console.log(ase);
             const bgPromise = sharp({create: {
               width: ase.width,
               height: ase.height,
@@ -54,7 +68,7 @@ module.exports = (requires) => {
                   return {input: img, top: cels[index].ypos * multiplier, left: cels[index].xpos * multiplier };
                 })).png().resize(ase.width * multiplier, ase.height * multiplier, {fit: 'inside', kernel: 'nearest'}).toBuffer().then(finalBuff => {
                   console.log('yeeet');
-                  bot.createMessage(details.channelID, { embed: ase.toEmbed() },{
+                  bot.createMessage(details.channelID, { embed: toEmbed(ase) },{
                       file: finalBuff,
                       name: details.attachments[0].filename.replace('.aseprite', '.png')});
                 })
@@ -63,7 +77,7 @@ module.exports = (requires) => {
                   return {input: img, top: cels[index].ypos, left: cels[index].xpos };
                 })).png().toBuffer().then(finalBuff => {
                   console.log('yeeet');
-                  bot.createMessage(details.channelID, { embed: ase.toEmbed() },{
+                  bot.createMessage(details.channelID, { embed: toEmbed(ase) },{
                       file: finalBuff,
                       name: details.attachments[0].filename.replace('.aseprite', '.png')});
                 })
