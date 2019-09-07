@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/TheCyberRonin/ase-bot#readme",
   "dependencies": {
-    "ase-parser": "0.0.7",
+    "ase-parser": "0.0.8",
     "eris": "^0.10.1",
     "fast-png": "^4.0.1",
     "nedb": "^1.8.0",
